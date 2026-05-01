@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CompanyOS — Virtual Company Dashboard</title>
+  <meta name="description" content="AI-powered virtual company with automated departments, CEO chat, and git integration." />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <button class="mobile-menu" id="mobile-menu">☰</button>
+
+    <aside class="sidebar" id="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="logo">⚡</div>
+          <div>
+            <h1>CompanyOS</h1>
+            <span>Virtual Company</span>
+          </div>
+        </div>
+        <nav>
+          <div class="nav-section">Command Center</div>
+          <a href="#" data-view="dashboard" class="active"><span class="icon">📊</span> Dashboard</a>
+          <a href="#" data-view="org-chart"><span class="icon">🏢</span> Org Chart</a>
+          <div class="nav-section">Workflow</div>
+          <a href="#" data-view="approvals"><span class="icon">✅</span> Approvals</a>
+          <a href="#" data-view="departments"><span class="icon">🏗️</span> Departments</a>
+          <a href="#" data-view="activity"><span class="icon">📋</span> Activity</a>
+          <div class="nav-section">Intelligence</div>
+          <a href="#" data-view="evidence"><span class="icon">🔍</span> Evidence</a>
+          <a href="#" data-view="git"><span class="icon">🔀</span> Git Ops</a>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <span class="status-dot" id="ollama-dot"></span>
+        <span id="ollama-status">Checking AI...</span>
+      </div>
+    </aside>
+
+    <main class="shell">
+      <!-- Dashboard View -->
+      <div class="section active" id="view-dashboard">
+        <div class="header">
+          <div class="header-left">
+            <h2>Good morning, Founder 👋</h2>
+            <p id="header-date">Command Center · Loading...</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost" id="refresh-btn">↻ Refresh</button>
+            <button class="btn btn-primary" id="run-analysis">▶ Run Morning Analysis</button>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="value" id="metric-proposed">0</div>
+            <div class="label">Proposed</div>
+          </div>
+          <div class="metric-card">
+            <div class="value" id="metric-approved">0</div>
+            <div class="label">Approved</div>
+          </div>
+          <div class="metric-card">
+            <div class="value" id="metric-active">0</div>
+            <div class="label">In Progress</div>
+          </div>
+          <div class="metric-card">
+            <div class="value" id="metric-done">0</div>
+            <div class="label">Completed</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel brief-panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">CEO Agent Brief</div>
+                <h3 id="brief-title">Run analysis to generate brief</h3>
+              </div>
+              <span class="badge" id="last-run">No run yet</span>
+            </div>
+            <p id="brief-summary" style="color:var(--text-muted);line-height:1.7;margin-bottom:12px">
+              The CEO agent scans your codebase, identifies risks, creates tasks, and waits for your approval.
+            </p>
+            <div id="top-risks" class="risk-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Quick Approvals</div>
+                <h3>Pending Tasks</h3>
+              </div>
+              <span class="badge" id="approval-count">0 waiting</span>
+            </div>
+            <div id="quick-approval-list" class="task-list"></div>
+            <button class="btn btn-primary" id="accept-all" style="margin-top:12px;width:100%">✓ Accept All Proposed</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Org Chart View -->
+      <div class="section" id="view-org-chart">
+        <div class="panel">
+          <div class="panel-head"><div><div class="eyebrow">Organization</div><h3>Company Structure</h3></div></div>
+          <div class="org-chart" id="org-chart"></div>
+        </div>
+      </div>
+
+      <!-- Approvals View -->
+      <div class="section" id="view-approvals">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Approval Queue</div><h3>CEO proposals awaiting your decision</h3></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary" id="accept-all-2">✓ Accept All</button>
+              <span class="badge" id="approval-count-2">0 waiting</span>
+            </div>
+          </div>
+          <div id="approval-list" class="task-list"></div>
+        </div>
+      </div>
+
+      <!-- Departments View -->
+      <div class="section" id="view-departments">
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-head"><div><div class="eyebrow">Departments</div><h3>Execution Boards</h3></div></div>
+        </div>
+        <div id="department-grid" class="dept-grid"></div>
+      </div>
+
+      <!-- Activity View -->
+      <div class="section" id="view-activity">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Activity Log</div><h3>Agent &amp; workflow timeline</h3></div>
+            <button class="btn btn-ghost" id="refresh-activity">↻ Refresh</button>
+          </div>
+          <div id="activity-list" class="activity-list"></div>
+        </div>
+      </div>
+
+      <!-- Evidence View -->
+      <div class="section" id="view-evidence">
+        <div class="panel">
+          <div class="panel-head"><div><div class="eyebrow">Evidence</div><h3>Latest scan findings</h3></div></div>
+          <div id="evidence-list" class="evidence-list"></div>
+        </div>
+      </div>
+
+      <!-- Git View -->
+      <div class="section" id="view-git">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Git Operations</div><h3>Branch &amp; commit pipeline</h3></div>
+            <button class="btn btn-ghost" id="refresh-git">↻ Refresh</button>
+          </div>
+          <div id="git-status" style="margin-bottom:16px"></div>
+          <div id="git-ops-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Chat Toggle -->
+  <button class="chat-toggle" id="chat-toggle" title="Chat with CEO">💬</button>
+
+  <!-- Chat Overlay -->
+  <div class="chat-overlay" id="chat-overlay"></div>
+
+  <!-- Chat Panel -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <h3>👔 CEO Agent</h3>
+      <button class="chat-close" id="chat-close">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-msg ceo">
+        <span class="msg-label">CEO</span>
+        Good morning! I'm your CEO agent. I manage all departments and help coordinate work across the company. What would you like to work on today?
+      </div>
+    </div>
+    <div class="chat-typing" id="chat-typing">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="chat-input-area">
+      <textarea class="chat-input" id="chat-input" placeholder="Message your CEO..." rows="1"></textarea>
+      <button class="chat-send" id="chat-send">Send</button>
+    </div>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{
+  "$schema": "../backend/node_modules/wrangler/config-schema.json",
+  "name": "artbook-command-center",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public"
+  },
+  "vars": {
+    "ARTBOOK_REPO": "loveleetverma/artbook",
+    "APP_ENV": "development"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "artbook-command-center",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "TASK_QUEUE",
+        "queue": "command-center-tasks"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "command-center-tasks",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "command-center-tasks-dlq"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "binding": "COMMAND_WORKFLOW",
+      "name": "command-center-workflow",
+      "class_name": "CommandWorkflow"
+    }
+  ],
+  "triggers": {
+    // 12:00 PM Asia/Kolkata = 06:30 UTC
+    "crons": ["30 6 * * *"]
+  },
+  "ai": {
+    "binding": "AI"
+  }
+}
