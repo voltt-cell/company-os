@@ -1,5 +1,5 @@
 // ─── State ───
-const state = { departments: [], agents: [], tasks: [], reports: [], events: [], gitOps: [], chatMessages: [], ollamaHealth: null };
+const state = { departments: [], agents: [], tasks: [], reports: [], events: [], gitOps: [], chatMessages: [], ollamaHealth: null, activeChatDept: "ceo" };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
@@ -144,7 +144,10 @@ function renderDepartments() {
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${color}"></div>
           <div class="dept-header">
             <div class="dept-icon" style="background:${color}20">${icon}</div>
-            <div class="dept-name" style="color:${color}">${d.name}</div>
+            <div style="flex:1">
+              <div class="dept-name" style="color:${color}">${d.name}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="window.openChat('${d.id}')" style="padding: 2px 8px; font-size: 12px">💬 Chat</button>
           </div>
           <div class="dept-purpose">${d.purpose}</div>
           <div class="dept-tasks">
@@ -254,13 +257,34 @@ function render() {
 }
 
 // ─── Chat ───
-function openChat() { $("#chat-panel").classList.add("open"); $("#chat-overlay").classList.add("visible"); $("#chat-input").focus(); }
+window.openChat = function(deptId = "ceo") { 
+  state.activeChatDept = deptId;
+  const dept = state.departments.find(d => d.id === deptId) || { name: "CEO", icon: "👔", purpose: "Strategic planning" };
+  $("#chat-title").textContent = `${dept.icon} ${dept.name} Agent`;
+  $("#chat-input").placeholder = `Message ${dept.name}...`;
+  
+  // Update initial message
+  $("#chat-messages").innerHTML = `
+    <div class="chat-msg agent">
+      <span class="msg-label">${dept.name}</span>
+      Good morning! I'm your ${dept.name} agent. I handle ${dept.purpose.toLowerCase()}. What would you like to work on today?
+    </div>
+  `;
+  
+  loadChatHistory();
+  
+  $("#chat-panel").classList.add("open"); 
+  $("#chat-overlay").classList.add("visible"); 
+  $("#chat-input").focus(); 
+}
 function closeChat() { $("#chat-panel").classList.remove("open"); $("#chat-overlay").classList.remove("visible"); }
 
 function addChatMsg(role, content) {
   const el = document.createElement("div");
+  const dept = state.departments.find(d => d.id === state.activeChatDept) || { name: "CEO" };
+  const roleName = role === "user" ? "You" : dept.name;
   el.className = `chat-msg ${role}`;
-  el.innerHTML = `<span class="msg-label">${role === "user" ? "You" : "CEO"}</span>${escapeHtml(content)}`;
+  el.innerHTML = `<span class="msg-label">${roleName}</span>${escapeHtml(content)}`;
   $("#chat-messages").appendChild(el);
   $("#chat-messages").scrollTop = $("#chat-messages").scrollHeight;
 }
@@ -279,12 +303,12 @@ async function sendChat() {
   $("#chat-send").disabled = true;
 
   try {
-    const res = await api("/api/chat/send", { method: "POST", body: { message: msg } });
+    const res = await api(`/api/chat/${state.activeChatDept}/send`, { method: "POST", body: { message: msg } });
     $("#chat-typing").classList.remove("visible");
-    addChatMsg("ceo", res.ceoMsg.content);
+    addChatMsg("agent", res.agentMsg.content);
 
-    // Check if CEO suggests delegation
-    if (res.ceoMsg.content.toLowerCase().includes("task") || res.ceoMsg.content.toLowerCase().includes("assign")) {
+    // Check if agent suggests delegation or tasks
+    if (res.agentMsg.content.toLowerCase().includes("task") || res.agentMsg.content.toLowerCase().includes("assign")) {
       // Refresh tasks in case CEO created any
       await refreshAll();
     }
@@ -297,12 +321,12 @@ async function sendChat() {
 
 async function loadChatHistory() {
   try {
-    const data = await api("/api/chat/history");
+    const data = await api(`/api/chat/${state.activeChatDept}/history`);
     const msgs = data.messages || [];
     if (msgs.length === 0) return;
     // Clear default welcome message
     $("#chat-messages").innerHTML = "";
-    msgs.forEach((m) => addChatMsg(m.role === "ceo" ? "ceo" : "user", m.content));
+    msgs.forEach((m) => addChatMsg(m.role === "agent" || m.role === "ceo" ? "agent" : "user", m.content));
   } catch { /* ignore */ }
 }
 
@@ -385,7 +409,7 @@ $("#refresh-activity").addEventListener("click", loadActivity);
 $("#refresh-git")?.addEventListener("click", () => { renderGit(); });
 
 // Chat
-$("#chat-toggle").addEventListener("click", openChat);
+$("#chat-toggle").addEventListener("click", () => window.openChat("ceo"));
 $("#chat-close").addEventListener("click", closeChat);
 $("#chat-overlay").addEventListener("click", closeChat);
 $("#chat-send").addEventListener("click", sendChat);

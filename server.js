@@ -11,7 +11,7 @@ const publicDir = path.join(__dirname, "public");
 const dataDir = path.join(__dirname, "data");
 const tasksFile = path.join(dataDir, "tasks.json");
 const reportsFile = path.join(dataDir, "reports.json");
-const chatFile = path.join(dataDir, "chat.json");
+const chatFile = (deptId) => path.join(dataDir, `chat-${deptId}.json`);
 const gitOpsFile = path.join(dataDir, "git-ops.json");
 const activityFile = path.join(dataDir, "activity.json");
 const port = Number(process.env.PORT || 4317);
@@ -136,36 +136,41 @@ async function runMorningAnalysis() {
   return { report, tasks };
 }
 
-// ─── CEO Chat ───
+// ─── Department Chat ───
 
-async function loadChat() { return readJson(chatFile, []); }
-async function saveChat(messages) { return writeJson(chatFile, messages); }
+async function loadChat(deptId = "ceo") { return readJson(chatFile(deptId), []); }
+async function saveChat(deptId, messages) { return writeJson(chatFile(deptId), messages); }
 
-async function sendCeoMessage(userMessage) {
-  const chatHistory = await loadChat();
+async function sendDepartmentMessage(deptId, userMessage) {
+  const chatHistory = await loadChat(deptId);
   const now = new Date().toISOString();
   const userMsg = { id: crypto.randomUUID(), role: "user", content: userMessage, createdAt: now };
   chatHistory.push(userMsg);
 
-  // Build context for CEO
+  // Build context
   const tasks = await loadTasks();
-  const activeTasks = tasks.filter((t) => t.status !== "done" && t.status !== "rejected");
-  const contextBlock = `\n\nCurrent company state:\n- ${activeTasks.length} active tasks\n- Departments: ${departments.map((d) => d.name).join(", ")}\n- Active tasks: ${activeTasks.slice(0, 5).map((t) => `${t.title} (${t.status})`).join("; ")}`;
+  const activeTasks = deptId === "ceo" 
+    ? tasks.filter((t) => t.status !== "done" && t.status !== "rejected")
+    : tasks.filter((t) => t.status !== "done" && t.status !== "rejected" && t.department === deptId);
+  
+  const contextBlock = deptId === "ceo"
+    ? `\n\nCurrent company state:\n- ${activeTasks.length} active tasks\n- Departments: ${departments.map((d) => d.name).join(", ")}\n- Active tasks: ${activeTasks.slice(0, 5).map((t) => `${t.title} (${t.status})`).join("; ")}`
+    : `\n\nCurrent department state:\n- Active tasks: ${activeTasks.slice(0, 5).map((t) => `${t.title} (${t.status})`).join("; ")}`;
 
-  const ceoDept = departmentConfig.ceo;
-  const recentMessages = chatHistory.slice(-20).map((m) => ({ role: m.role === "ceo" ? "assistant" : m.role, content: m.content }));
+  const deptConfig = departmentConfig[deptId] || departmentConfig.ceo;
+  const recentMessages = chatHistory.slice(-20).map((m) => ({ role: m.role === "agent" || m.role === "ceo" ? "assistant" : m.role, content: m.content }));
 
   const response = await chat({
-    systemPrompt: ceoDept.systemPrompt + contextBlock,
+    systemPrompt: deptConfig.systemPrompt + contextBlock,
     messages: recentMessages,
     temperature: 0.7
   });
 
-  const ceoMsg = { id: crypto.randomUUID(), role: "ceo", content: response.content, createdAt: new Date().toISOString(), model: response.model };
-  chatHistory.push(ceoMsg);
-  await saveChat(chatHistory.slice(-100));
-  await addActivity("ceo_chat", { summary: userMessage.slice(0, 80) });
-  return { userMsg, ceoMsg, history: chatHistory.slice(-50) };
+  const agentMsg = { id: crypto.randomUUID(), role: "agent", content: response.content, createdAt: new Date().toISOString(), model: response.model };
+  chatHistory.push(agentMsg);
+  await saveChat(deptId, chatHistory.slice(-100));
+  await addActivity(`${deptId}_chat`, { summary: userMessage.slice(0, 80) });
+  return { userMsg, agentMsg, history: chatHistory.slice(-50) };
 }
 
 // ─── CEO Delegate (create tasks from chat) ───
@@ -323,14 +328,16 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { accepted: results.length, tasks });
     }
 
-    // CEO Chat
-    if (p === "/api/chat/history" && req.method === "GET") {
-      return sendJson(res, 200, { messages: await loadChat() });
+    // Department Chat
+    const chatHistoryMatch = p.match(/^\/api\/chat\/([^/]+)\/history$/);
+    if (chatHistoryMatch && req.method === "GET") {
+      return sendJson(res, 200, { messages: await loadChat(chatHistoryMatch[1]) });
     }
-    if (p === "/api/chat/send" && req.method === "POST") {
+    const chatSendMatch = p.match(/^\/api\/chat\/([^/]+)\/send$/);
+    if (chatSendMatch && req.method === "POST") {
       const body = await parseBody(req);
       if (!body.message) return sendJson(res, 400, { error: "message required" });
-      const result = await sendCeoMessage(body.message);
+      const result = await sendDepartmentMessage(chatSendMatch[1], body.message);
       return sendJson(res, 200, result);
     }
 

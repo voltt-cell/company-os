@@ -325,13 +325,13 @@ button{font-family:inherit;cursor:pointer;border:none;font-weight:600;transition
   background:var(--grad-ceo);color:#fff;
   border-bottom-right-radius:4px;
 }
-.chat-msg.ceo{
+.chat-msg.ceo, .chat-msg.agent{
   align-self:flex-start;
   background:var(--bg-glass);border:1px solid var(--border);
   color:var(--text);border-bottom-left-radius:4px;
 }
 .chat-msg .msg-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:4px;display:block}
-.chat-msg.ceo .msg-label{color:var(--cyan)}
+.chat-msg.ceo .msg-label, .chat-msg.agent .msg-label{color:var(--cyan)}
 
 .chat-typing{
   align-self:flex-start;padding:10px 14px;
